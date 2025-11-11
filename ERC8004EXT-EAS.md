@@ -225,6 +225,28 @@ Clients MUST verify:
 4. Attestation is not expired (if `expirationTime` is set)
 5. Attester is trusted (per client's trust policy)
 
+
+## Future Direction: EAS v2 Migration Path
+
+The current v1 EAS Extension uses a DID address as the value of the subject field in order to remain compatible with the canonical EAS contract interface, which strictly defines subject as an address.
+
+This approach allows ERC-8004 identity registries and DIDs to participate in the EAS ecosystem today, but it is a transitional mechanism, not a permanent design choice. The DID address format is only a proxy representation of a DID or registry identifier—it was never intended to be a spendable or externally owned
+ account, and implementations MUST treat it as a non-transferable identifier rather than a wallet address.
+
+In v2, the EAS extension will migrate away from this workaround toward a more flexible subject model that allows:
+
+- Native support for non-address subject types such as bytes32 (DID hashes), string (canonicalized DIDs), or structured identifiers (e.g., CAIP-19 asset references).
+- A unified attestation schema capable of expressing cross-chain and cross-namespace subjects.
+- Optional backward compatibility for v1 DID address subjects through SDK-level resolution.
+
+This evolution is not a competing alternative to v1, but a planned migration path. The v1 approach ensures interoperability with existing EAS deployments. The v2 framework defines the long-term direction for EAS-compatible attestations across heterogeneous identifiers, registries, and chains.
+
+Implementations integrating this specification should plan to:
+
+- Continue supporting DID address subjects for legacy attestations.
+- Add support for resolving v2 subject types as they become available.
+- Transition indexers and SDKs to a unified query layer that transparently handles both v1 and v2 attestations.
+
 ## Copyright
 
 Copyright and related rights waived via CC0.
