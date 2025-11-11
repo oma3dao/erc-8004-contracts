@@ -19,20 +19,59 @@ Validation Registry - Generic hooks for requesting and recording independent val
 Payments are orthogonal to this protocol and not covered here. However, examples are provided showing how x402 payment proofs can enrich feedback signals.
 Specification
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in RFC 2119 and RFC 8174.
+
+Implementations of ERC-8004 MUST deploy the Identity Registry for agent registration and discovery. The Reputation and Validation Registries are extensions that MAY be deployed as additional trust layers that can be deployed independently or in combination.  Deploying more than one Reputation Registry or more than one Validation Registry per Identity Registry is NOT RECOMMENDED.
+
 Identity Registry
-The Identity Registry uses ERC-721 with the URIStorage extension for agent registration, making all agents immediately browsable and transferable with NFTs-compliant apps. Each agent is uniquely identified globally by:
+The Identity Registry MUST use ERC-721 with the OPTIONAL URIStorage extension for agent registration, making all agents immediately browsable and transferable with NFTs-compliant apps. Each agent is uniquely identified globally by:
 
 namespace: eip155 for EVM chains
 chainId: The blockchain network identifier
 identityRegistry: The address where the ERC-721 registry contract is deployed
 agentId: The ERC-721 tokenId assigned incrementally by the registry
 
-Throughout this document, ERC-721's tokenId is referred to as agentId. The owner of the ERC-721 token is the owner of the agent and can transfer ownership or delegate management (e.g., updating the registration file) to operators, as supported by ERC721URIStorage.
+Throughout this document, ERC-721's tokenId is referred to as agentId. The owner of the ERC-721 token can transfer ownership or delegate management (e.g., updating the registration file) of the NFT to operators, as supported by standard ERC-721 functions (`transferFrom`, `approve`, `setApprovalForAll`).  
+
 Token URI and Agent Registration File
-The tokenURI MUST resolve to the agent registration file. It MAY use any URI scheme such as ipfs:// (e.g., ipfs://cid) or https:// (e.g., https://domain.com/agent3.json).  When the registration data changes, it can be updated with _setTokenURI() as per ERC721URIStorage.
+The `tokenURI` function MUST resolve to the agent registration file. It MAY use any URI scheme such as ipfs:// (e.g., ipfs://cid) or https:// (e.g., https://domain.com/agent3.json).  Implementations MAY allow the URI returned by `tokenURI` to be updated by the NFT owner or an authorized operator.
 
-The registration file MUST have the following structure:
+The registration file MUST be a valid JSON object conforming to the following requirements:
 
+**Registration File Fields**
+
+| Field              | Type            | Required | Description                                                                                       |
+| ------------------ | --------------- | -------- | ------------------------------------------------------------------------------------------------- |
+| `type`             | string          | MUST     | Schema identifier.                                                                                |
+| `name`             | string          | MUST     | Agent name.                                                                                       |
+| `description`      | string          | MUST     | Natural language description of the agent.                                                        |
+| `image`            | string (URI)    | SHOULD   | URI to agent image. SHOULD be present for ERC-721 compatibility.                                  |
+| `endpoints`        | array           | MUST     | Array of at least one endpoint object (see Endpoint Object Fields table below).                   |
+| `registrations`    | array           | SHOULD   | Array of registration objects. Agents MUST have at least one registration.                        |
+| `supportedTrust`   | array (string)  | MAY      | Array of supported trust models (e.g., `"reputation"`, `"crypto-economic"`, `"tee-attestation"`). |
+
+**Endpoint Object Fields**
+
+| Field            | Type    | Required | Description                                                                                            |
+| ---------------- | ------- | -------- | ------------------------------------------------------------------------------------------------------ |
+| `name`           | string  | MUST     | Identifier for the endpoint type (e.g., `"A2A"`, `"MCP"`, `"ENS"`, `"DID"`, `"agentWallet"`, `"OASF"`) |
+| `endpoint`       | string  | MUST     | The actual endpoint URI, address, or identifier                                                        |
+| `version`        | string  | SHOULD   | Version of the protocol or standard being used                                                         |
+| `capabilities`   | object  | MAY      | Protocol-specific capabilities (e.g., for MCP spec)                                                    |
+
+Agents MAY advertise endpoints that point to an A2A agent card, an MCP endpoint, an ENS agent name, DIDs, or the agent's wallets on any chain (even chains where the agent is not registered).
+
+**Registration Object Fields**
+
+| Field             | Type    | Required | Description                                                       |
+| ----------------- | ------- | -------- | ----------------------------------------------------------------- |
+| `agentId`         | number  | MUST     | The agent's token ID in the registry.                             |
+| `agentRegistry`   | string  | MUST     | CAIP-10 format identifier (e.g., `"eip155:1:{identityRegistry}"`) |
+
+When using an agentId, Clients MUST validate that JSON returned by the tokenURI is tied to the NFT that points to tokenURI.  One path is to check that the tokenURI associated with the agentId contains a registration object with the matching agentId and agentRegistry.  Other verification mechanisms will be introduced in the future.  This filters out NFTs that masquerade as the registration file's owner.
+
+**Example Registration File**
+
+```json
 {
   "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
   "name": "myAgentName",
@@ -47,13 +86,13 @@ The registration file MUST have the following structure:
     {
       "name": "MCP",
       "endpoint": "https://mcp.agent.eth/",
-      "capabilities": {}, // OPTIONAL, as per MCP spec
+      "capabilities": {},
       "version": "2025-06-18"
     },
     {
       "name": "OASF",
       "endpoint": "ipfs://{cid}",
-      "version": "0.7" // https://github.com/agntcy/oasf/tree/v0.7.0
+      "version": "0.7"
     },
     {
       "name": "ENS",
@@ -82,21 +121,21 @@ The registration file MUST have the following structure:
     "tee-attestation"
   ]
 }
+```
 
-The type, name, description, and image fields at the top SHOULD ensure compatibility with ERC-721 apps. The number and type of endpoints are fully customizable, allowing developers to add as many as they wish. The version field in endpoints is a SHOULD, not a MUST.
-
-Agents MAY advertise their endpoints, which point to an A2A agent card, an MCP endpoint, an ENS agent name, DIDs, or the agent's wallets on any chain (even chains where the agent is not registered).
-
-Agents SHOULD have at least one registration (multiple are possible), and all fields in the registration are mandatory.
-The supportedTrust field is OPTIONAL. If absent or empty, ERC-8004 is used only for discovery, not for trust.
 Onchain metadata
-The registry extends ERC-721 by adding getMetadata(uint256 agentId, string key) and setMetadata(uint256 agentId, string key, bytes value) functions for optional extra on-chain agent metadata.
+ERC-8004 Identity Registries MAY enable support for metadata by implementing the `getMetadata(uint256 agentId, string key)` and `setMetadata(uint256 agentId, string key, bytes value)` functions.
 Examples of keys are “agentWallet” or “agentName”.
 
-When metadata is set, the following event is emitted:
-event MetadataSet(uint256 indexed agentId, string indexed indexedKey, string key, bytes value)
+When metadata is set, the following event MUST be emitted:
+
+`event MetadataSet(uint256 indexed agentId, string indexed indexedKey, string key, bytes value)`
+
 Registration
-New agents can be minted by calling one of these functions:
+ERC-8004 Identity Registries MUST enable the minting of new agents by supporting the following functions:
+
+```
+function register(string tokenURI) returns (uint256 agentId)
 
 struct MetadataEntry {
 string key;
@@ -105,15 +144,101 @@ bytes value;
 
 function register(string tokenURI, MetadataEntry[] calldata metadata) returns (uint256 agentId)
 
-function register(string tokenURI) returns (uint256 agentId)
+```
 
-// tokenURI is added later with _setTokenURI()
-function register() returns (uint256 agentId)
+The `agentId` returned by `register()` MUST equal the tokenId assigned to the minted NFT.
 
-This emits one Transfer event, one MetadataSet event for each metadata entry, if any, and
+Each register function MUST emit the standard ERC-721 Transfer event, one MetadataSet event for each metadata entry (if any), and a Registered event:
 
-event Registered(uint256 indexed agentId, string tokenURI, address indexed owner)
-Reputation Registry
+`event Registered(uint256 indexed agentId, string tokenURI, address indexed owner)`
+
+---
+
+### Solidity Interface
+
+An Identity Registry MUST support the following Solidity interface:
+
+```solidity
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+
+/**
+ * @title IERC8004
+ * @dev Base interface for ERC-8004 Identity Registry
+ * @notice Extends ERC-721 with agent registration
+ * @notice Implementations MAY support optional metadata via the register() overload
+ *         and MetadataSet event. See specification for metadata support details.
+ */
+interface IERC8004 is IERC721 {
+    
+    /**
+     * @dev Metadata entry
+     */
+    struct MetadataEntry {
+        string key;
+        bytes value;
+    }
+    
+    /**
+     * @dev Emitted when a new agent is registered
+     * @param agentId The token ID assigned to the agent
+     * @param tokenURI The URI pointing to the agent's registration file
+     * @param owner The address that owns the newly minted agent NFT
+     */
+    event Registered(
+        uint256 indexed agentId,
+        string tokenURI,
+        address indexed owner
+    );
+    
+    /**
+     * @dev Emitted when metadata is set (optional feature)
+     * @param agentId The token ID
+     * @param key The metadata key (indexed for filtering)
+     * @param value The metadata value
+     */
+    event MetadataSet(
+        uint256 indexed agentId,
+        string indexed key,
+        bytes value
+    );
+    
+    /**
+     * @notice Register a new agent
+     * @param tokenURI URI pointing to the registration file
+     * @return agentId The token ID of the newly registered agent (equals the NFT tokenId)
+     */
+    function register(string memory tokenURI) external returns (uint256 agentId);
+    
+    /**
+     * @notice Register a new agent with metadata
+     * @param tokenURI URI pointing to the registration file
+     * @param metadata Array of metadata entries to set
+     * @return agentId The token ID of the newly registered agent (equals the NFT tokenId)
+     */
+    function register(
+        string memory tokenURI,
+        MetadataEntry[] memory metadata
+    ) external returns (uint256 agentId);
+    
+    // Note: getMetadata() and setMetadata() functions are intentionally omitted from this
+    // base interface as they are OPTIONAL.
+}
+```
+
+**Interface Notes:**
+
+- Extends `IERC721` to inherit standard NFT functions (`ownerOf`, `transferFrom`, `balanceOf`, etc.)
+- The `register(string tokenURI)` function is REQUIRED for all implementations
+- The `register()` overload with metadata is OPTIONAL
+- The `Registered` event MUST be emitted when an agent is registered
+- The `MetadataSet` event MUST be emitted when metadata is set (if supported)
+- The `agentId` returned by `register()` MUST equal the ERC-721 `tokenId`
+- Metadata functions (`getMetadata`, `setMetadata`) are intentionally omitted - use the Security Extension for metadata support
+- Extensions (Security, EAS, Web) define additional interfaces that can be composed with this base
+
+---
+
+### Reputation Registry
 When the Reputation Registry is deployed, the identityRegistry address is passed to the constructor and publicly visible by calling:
 
 function getIdentityRegistry() external view returns (address identityRegistry)
