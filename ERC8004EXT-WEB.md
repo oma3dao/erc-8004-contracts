@@ -207,8 +207,11 @@ This extension defines the following trait values to improve interoperability of
 | “api:jsonrpc”        | Include this if the interface field has a value of 2 and the API format is JSON-RPC.|
 | "api:mcp"            | Include this if the interface field has a value of 2 and the API format is OpenAPI. |
 | "api:a2a"            | Include this if the interface field has a value of 2 and the API format is A2A.     |
+| "api:oasf"           | Include this if the interface field has a value of 2 and supports OASF capabilities.|
 | “pay:x402”           | Include this if the endpoint supports x402 payments.                                |
 | “pay:manual”         | Include this if the endpoint supports traditional payments.                         |
+
+**Note**: Traits are capability flags that complement the `endpoints[].name` field defined in the base specification. The `name` field identifies the endpoint type (e.g., `"MCP"`, `"OPENAPI"`), while traits provide additional capability information (e.g., `"pay:x402"` indicates payment support).
 
 ### DID
 

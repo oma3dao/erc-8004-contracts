@@ -53,12 +53,26 @@ The registration file MUST be a valid JSON object conforming to the following re
 
 | Field            | Type    | Required | Description                                                                                            |
 | ---------------- | ------- | -------- | ------------------------------------------------------------------------------------------------------ |
-| `name`           | string  | MUST     | Identifier for the endpoint type (e.g., `"A2A"`, `"MCP"`, `"ENS"`, `"DID"`, `"agentWallet"`, `"OASF"`) |
+| `name`           | string  | MUST     | Identifier for the endpoint type (see Endpoint Name Registry below)                                    |
 | `endpoint`       | string  | MUST     | The actual endpoint URI, address, or identifier                                                        |
 | `version`        | string  | SHOULD   | Version of the protocol or standard being used                                                         |
 | `capabilities`   | object  | MAY      | Protocol-specific capabilities (e.g., for MCP spec)                                                    |
 
-Agents MAY advertise endpoints that point to an A2A agent card, an MCP endpoint, an ENS agent name, DIDs, or the agent's wallets on any chain (even chains where the agent is not registered).
+**Endpoint Name Registry**
+
+The `name` field MUST use one of the following standardized values:
+
+| Name         | Description                                      | Endpoint Format                    |
+| ------------ | ------------------------------------------------ | ---------------------------------- |
+| `A2A`        | Agent-to-Agent protocol                          | URL to agent card                  |
+| `MCP`        | Model Context Protocol                           | URL to MCP server                  |
+| `OPENAPI`    | OpenAPI (REST) specification                     | URL to API base or OpenAPI spec    |
+| `GRAPHQL`    | GraphQL API                                      | URL to GraphQL endpoint            |
+| `JSONRPC`    | JSON-RPC API                                     | URL to JSON-RPC endpoint           |
+| `OASF`       | Open Agent Skill Format                          | URL to OASF skill definition       |
+| `DID`        | Decentralized Identifier                         | DID string (e.g., did:web:...)     |
+
+Future versions of this specification will define required fields for each endpoint type.
 
 **Registration Object Fields**
 
@@ -90,23 +104,19 @@ When using an agentId, Clients MUST validate that JSON returned by the tokenURI 
       "version": "2025-06-18"
     },
     {
+      "name": "OPENAPI",
+      "endpoint": "https://api.example.com/v1",
+      "version": "3.0.0"
+    },
+    {
       "name": "OASF",
       "endpoint": "ipfs://{cid}",
       "version": "0.7"
     },
     {
-      "name": "ENS",
-      "endpoint": "vitalik.eth",
-      "version": "v1"
-    },
-    {
       "name": "DID",
       "endpoint": "did:method:foobar",
       "version": "v1"
-    },
-    {
-      "name": "agentWallet",
-      "endpoint": "eip155:1:0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb7"
     }
   ],
   "registrations": [
